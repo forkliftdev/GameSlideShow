@@ -1,6 +1,8 @@
-## Devvit React Starter
+# GameSlides
 
-A starter to build web applications on Reddit's developer platform
+A Reddit/Devvit app that displays games playable on Reddit.
+
+Built on Reddit's developer platform with:
 
 - [Devvit](https://developers.reddit.com/): A way to build and deploy immersive games on Reddit
 - [Vite](https://vite.dev/): For compiling the webView
