@@ -1,93 +1,89 @@
 import { Hono } from 'hono';
-import { context, redis, reddit } from '@devvit/web/server';
+import { reddit } from '@devvit/web/server';
 import type {
-  DecrementResponse,
-  IncrementResponse,
-  InitResponse,
-} from '../../shared/api';
-
-type ErrorResponse = {
-  status: 'error';
-  message: string;
-};
+  AdminActionResponse,
+  AdminQueueResponse,
+  ApiErrorResponse,
+  GamesResponse,
+} from '../../shared/games';
+import {
+  approveGame,
+  deleteGame,
+  listActiveGames,
+  listPendingGames,
+} from '../core/games';
+import { currentUserIsPowerMod } from '../core/mods';
+import { sendRejectionModmail } from '../core/modmail';
 
 export const api = new Hono();
 
-api.get('/init', async (c) => {
-  const { postId } = context;
-
-  if (!postId) {
-    console.error('API Init Error: postId not found in devvit context');
-    return c.json<ErrorResponse>(
-      {
-        status: 'error',
-        message: 'postId is required but missing from context',
-      },
-      400
-    );
-  }
-
+// Public: the launchpad carousel reads this on load.
+api.get('/games', async (c) => {
   try {
-    const [count, username] = await Promise.all([
-      redis.get('count'),
-      reddit.getCurrentUsername(),
-    ]);
-
-    return c.json<InitResponse>({
-      type: 'init',
-      postId: postId,
-      count: count ? parseInt(count) : 0,
-      username: username ?? 'anonymous',
-    });
+    const games = await listActiveGames();
+    return c.json<GamesResponse>({ type: 'games', games });
   } catch (error) {
-    console.error(`API Init Error for post ${postId}:`, error);
-    let errorMessage = 'Unknown error during initialization';
-    if (error instanceof Error) {
-      errorMessage = `Initialization failed: ${error.message}`;
-    }
-    return c.json<ErrorResponse>(
-      { status: 'error', message: errorMessage },
-      400
+    console.error('Failed to list active games:', error);
+    return c.json<ApiErrorResponse>(
+      { status: 'error', message: 'Failed to load games' },
+      500
     );
   }
 });
 
-api.post('/increment', async (c) => {
-  const { postId } = context;
-  if (!postId) {
-    return c.json<ErrorResponse>(
-      {
-        status: 'error',
-        message: 'postId is required',
-      },
-      400
-    );
+// Power-mod only: pending submission queue for the admin panel.
+api.get('/admin/queue', async (c) => {
+  if (!(await currentUserIsPowerMod())) {
+    return c.json<AdminQueueResponse>({ type: 'queue', authorized: false });
   }
-
-  const count = await redis.incrBy('count', 1);
-  return c.json<IncrementResponse>({
-    count,
-    postId,
-    type: 'increment',
-  });
+  const games = await listPendingGames();
+  return c.json<AdminQueueResponse>({ type: 'queue', authorized: true, games });
 });
 
-api.post('/decrement', async (c) => {
-  const { postId } = context;
-  if (!postId) {
-    return c.json<ErrorResponse>(
-      {
-        status: 'error',
-        message: 'postId is required',
-      },
+// Power-mod only: approve a pending submission.
+api.post('/admin/approve', async (c) => {
+  if (!(await currentUserIsPowerMod())) {
+    return c.json<AdminActionResponse>(
+      { type: 'admin-action', ok: false, message: 'Not authorized' },
+      403
+    );
+  }
+  const { slug } = await c.req.json<{ slug?: string }>();
+  if (!slug) {
+    return c.json<AdminActionResponse>(
+      { type: 'admin-action', ok: false, message: 'slug is required' },
       400
     );
   }
+  const approvedBy = (await reddit.getCurrentUsername()) ?? 'unknown';
+  const game = await approveGame(slug, approvedBy);
+  if (!game) {
+    return c.json<AdminActionResponse>(
+      { type: 'admin-action', ok: false, message: 'Game not found' },
+      404
+    );
+  }
+  return c.json<AdminActionResponse>({ type: 'admin-action', ok: true });
+});
 
-  const count = await redis.incrBy('count', -1);
-  return c.json<DecrementResponse>({
-    count,
-    postId,
-    type: 'decrement',
-  });
+// Power-mod only: reject a pending submission (delete + notify dev).
+api.post('/admin/reject', async (c) => {
+  if (!(await currentUserIsPowerMod())) {
+    return c.json<AdminActionResponse>(
+      { type: 'admin-action', ok: false, message: 'Not authorized' },
+      403
+    );
+  }
+  const { slug } = await c.req.json<{ slug?: string }>();
+  if (!slug) {
+    return c.json<AdminActionResponse>(
+      { type: 'admin-action', ok: false, message: 'slug is required' },
+      400
+    );
+  }
+  const game = await deleteGame(slug);
+  if (game?.dev_username) {
+    await sendRejectionModmail(game);
+  }
+  return c.json<AdminActionResponse>({ type: 'admin-action', ok: true });
 });

@@ -1,1 +1,12 @@
 @import 'tailwindcss';
+
+/* Hide scrollbars on horizontal scroll rows (tabs + card carousel). */
+@layer utilities {
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

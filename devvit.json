@@ -20,26 +20,61 @@
   "menu": {
     "items": [
       {
-        "label": "Create a new post",
-        "description": "gameslideshow",
+        "label": "Create Launchpad Post",
+        "description": "Create the Word Game Arcade launchpad post",
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/post-create"
       },
       {
-        "label": "Example form",
-        "description": "Show a simple form",
+        "label": "Seed Games (round 1)",
+        "description": "Load the initial set of games into Redis",
         "location": "subreddit",
         "forUserType": "moderator",
-        "endpoint": "/internal/menu/example-form"
+        "endpoint": "/internal/menu/seed"
+      },
+      {
+        "label": "Add Game",
+        "description": "Add a game to the launchpad",
+        "location": ["subreddit", "post"],
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/add-game"
+      },
+      {
+        "label": "Edit Game",
+        "description": "Edit an existing game",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/edit-game"
+      },
+      {
+        "label": "Submit Your Game",
+        "description": "Submit a word game for review",
+        "location": "post",
+        "forUserType": "user",
+        "endpoint": "/internal/menu/submit-game"
       }
     ]
   },
   "forms": {
-    "exampleForm": "/internal/form/example-submit"
+    "addGame": "/internal/form/add-submit",
+    "editGame": "/internal/form/edit-submit",
+    "submitGame": "/internal/form/submit-submit"
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install"
+  },
+  "scheduler": {
+    "tasks": {
+      "refresh-subscribers": {
+        "endpoint": "/internal/scheduler/refresh-subscribers",
+        "cron": "0 0 * * 0"
+      },
+      "notify-aged-out": {
+        "endpoint": "/internal/scheduler/notify-aged-out",
+        "cron": "0 9 * * 1"
+      }
+    }
   },
   "scripts": {
     "dev": "vite build --watch",
