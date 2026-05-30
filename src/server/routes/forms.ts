@@ -1,6 +1,11 @@
 import { Hono } from 'hono';
 import type { UiResponse } from '@devvit/web/shared';
-import { GENRE_TAGS, type GenreTag, type Game } from '../../shared/games';
+import {
+  GENRE_TAGS,
+  slugify,
+  type GenreTag,
+  type Game,
+} from '../../shared/games';
 import { getGame, putGame } from '../core/games';
 import { currentUserIsPowerMod } from '../core/mods';
 import { stripPrefix } from '../core/forms';
@@ -9,8 +14,10 @@ import { sendSubmissionModmail } from '../core/modmail';
 export const forms = new Hono();
 
 type RawFormValues = {
+  id?: string;
   name?: string;
   subreddit?: string;
+  url?: string;
   dev_username?: string;
   founded_date?: string;
   genre_tags?: string[];
@@ -27,10 +34,23 @@ const cleanTags = (raw: string[] | undefined): GenreTag[] =>
 
 const str = (v: string | undefined): string => (typeof v === 'string' ? v.trim() : '');
 
+/** Keep a link only if it's a real http(s) URL; otherwise card quietly falls back to the sub. */
+const cleanUrl = (raw: string): string | undefined =>
+  /^https?:\/\//i.test(raw) ? raw : undefined;
+
+/** Find a free id by appending -2, -3, … if the base is taken. */
+const uniqueId = async (base: string): Promise<string> => {
+  let id = base || 'game';
+  let n = 2;
+  while (await getGame(id)) id = `${base}-${n++}`;
+  return id;
+};
+
 /** Build a Game from submitted form values. `status` decides active vs pending. */
 const gameFromValues = (
   values: RawFormValues,
   status: Game['status'],
+  id: string,
   existing?: Game
 ): Game | { error: string } => {
   const name = str(values.name);
@@ -49,9 +69,11 @@ const gameFromValues = (
   }
 
   return {
+    id,
     name,
     subreddit: `r/${slug}`,
     subreddit_slug: slug,
+    url: cleanUrl(str(values.url)) ?? existing?.url,
     dev_username: stripPrefix(str(values.dev_username)),
     founded_date,
     genre_tags,
@@ -67,13 +89,14 @@ const gameFromValues = (
   };
 };
 
-// Mod add: writes an active game immediately.
+// Mod add: writes an active game immediately. Id is auto-derived from the name (unique).
 forms.post('/add-submit', async (c) => {
   if (!(await currentUserIsPowerMod())) {
     return c.json<UiResponse>({ showToast: 'Mods only' }, 403);
   }
   const values = await c.req.json<RawFormValues>();
-  const result = gameFromValues(values, 'active');
+  const id = str(values.id) || (await uniqueId(slugify(str(values.name))));
+  const result = gameFromValues(values, 'active', id);
   if ('error' in result) {
     return c.json<UiResponse>({ showToast: result.error }, 400);
   }
@@ -81,15 +104,15 @@ forms.post('/add-submit', async (c) => {
   return c.json<UiResponse>({ showToast: `Added ${result.name}.` }, 200);
 });
 
-// Mod edit: upserts an active game (preserving subscriber + approval metadata).
+// Mod edit: upserts by id (preserving subscriber + approval metadata).
 forms.post('/edit-submit', async (c) => {
   if (!(await currentUserIsPowerMod())) {
     return c.json<UiResponse>({ showToast: 'Mods only' }, 403);
   }
   const values = await c.req.json<RawFormValues>();
-  const slug = stripPrefix(str(values.subreddit));
-  const existing = slug ? await getGame(slug) : undefined;
-  const result = gameFromValues(values, existing?.status ?? 'active', existing);
+  const id = str(values.id) || slugify(str(values.name));
+  const existing = id ? await getGame(id) : undefined;
+  const result = gameFromValues(values, existing?.status ?? 'active', id, existing);
   if ('error' in result) {
     return c.json<UiResponse>({ showToast: result.error }, 400);
   }
@@ -100,7 +123,8 @@ forms.post('/edit-submit', async (c) => {
 // Public submission: writes a pending game and notifies mods.
 forms.post('/submit-submit', async (c) => {
   const values = await c.req.json<RawFormValues>();
-  const result = gameFromValues(values, 'pending');
+  const id = await uniqueId(slugify(str(values.name)));
+  const result = gameFromValues(values, 'pending', id);
   if ('error' in result) {
     return c.json<UiResponse>({ showToast: result.error }, 400);
   }

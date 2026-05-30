@@ -48,15 +48,15 @@ api.post('/admin/approve', async (c) => {
       403
     );
   }
-  const { slug } = await c.req.json<{ slug?: string }>();
-  if (!slug) {
+  const { id } = await c.req.json<{ id?: string }>();
+  if (!id) {
     return c.json<AdminActionResponse>(
-      { type: 'admin-action', ok: false, message: 'slug is required' },
+      { type: 'admin-action', ok: false, message: 'id is required' },
       400
     );
   }
   const approvedBy = (await reddit.getCurrentUsername()) ?? 'unknown';
-  const game = await approveGame(slug, approvedBy);
+  const game = await approveGame(id, approvedBy);
   if (!game) {
     return c.json<AdminActionResponse>(
       { type: 'admin-action', ok: false, message: 'Game not found' },
@@ -74,14 +74,14 @@ api.post('/admin/reject', async (c) => {
       403
     );
   }
-  const { slug } = await c.req.json<{ slug?: string }>();
-  if (!slug) {
+  const { id } = await c.req.json<{ id?: string }>();
+  if (!id) {
     return c.json<AdminActionResponse>(
-      { type: 'admin-action', ok: false, message: 'slug is required' },
+      { type: 'admin-action', ok: false, message: 'id is required' },
       400
     );
   }
-  const game = await deleteGame(slug);
+  const game = await deleteGame(id);
   if (game?.dev_username) {
     await sendRejectionModmail(game);
   }

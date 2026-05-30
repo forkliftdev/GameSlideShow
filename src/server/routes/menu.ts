@@ -4,7 +4,7 @@ import { context } from '@devvit/web/server';
 import { createPost } from '../core/post';
 import { currentUserIsPowerMod } from '../core/mods';
 import { seedGames } from '../core/seed';
-import { getGame } from '../core/games';
+import { clearAllGames, getGame } from '../core/games';
 import {
   addGameFormDefinition,
   editGameFormDefinition,
@@ -40,6 +40,14 @@ menu.post('/seed', async (c) => {
   return c.json<UiResponse>({ showToast: `Seeded ${written} game(s).` }, 200);
 });
 
+menu.post('/reset', async (c) => {
+  if (!(await currentUserIsPowerMod())) {
+    return c.json<UiResponse>({ showToast: 'Mods only' }, 403);
+  }
+  const removed = await clearAllGames();
+  return c.json<UiResponse>({ showToast: `Cleared ${removed} game(s).` }, 200);
+});
+
 menu.post('/add-game', async (c) => {
   if (!(await currentUserIsPowerMod())) {
     return c.json<UiResponse>({ showToast: 'Mods only' }, 403);
@@ -51,10 +59,10 @@ menu.post('/edit-game', async (c) => {
   if (!(await currentUserIsPowerMod())) {
     return c.json<UiResponse>({ showToast: 'Mods only' }, 403);
   }
-  // If a slug query param is supplied (from the admin panel launcher), pre-populate
-  // from Redis; otherwise the form opens blank and upserts by the entered subreddit.
-  const slug = c.req.query('slug');
-  const game = slug ? await getGame(slug) : undefined;
+  // If an id query param is supplied (from the admin panel launcher), pre-populate from
+  // Redis; otherwise the form opens blank and the mod fills in the id to edit.
+  const id = c.req.query('id');
+  const game = id ? await getGame(id) : undefined;
   return c.json<UiResponse>({ showForm: editGameFormDefinition(game) }, 200);
 });
 

@@ -127,7 +127,7 @@ export const Launchpad = () => {
               className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-1"
             >
               {visible.map((game) => (
-                <GameCard key={game.subreddit_slug} game={game} />
+                <GameCard key={game.id} game={game} />
               ))}
             </div>
             {/* Scroll controls sit in the bottom corners of the tiles, clear of the icons. */}

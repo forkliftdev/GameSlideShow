@@ -4,26 +4,36 @@
 
 import { reddit } from '@devvit/web/server';
 import { getGame, putGame } from './games';
-import type { Game } from '../../shared/games';
+import { slugify, type Game } from '../../shared/games';
+
+/** Seed entries omit `id`; it's derived from the name at seed time. */
+type SeedGame = Omit<Game, 'id'>;
 
 const today = (): string => new Date().toISOString().slice(0, 10);
 
 /**
- * Pull the real community icon, brand color, and subscriber count from the game's subreddit.
- * Any field that isn't available keeps the seed default. Failures (e.g. private/missing sub)
- * return the game unchanged.
+ * Pull subscriber count from the host subreddit (always — it's the universal metric, and is
+ * shared by every game on that sub). Community icon + brand color are pulled ONLY when the
+ * game has no icon of its own: single-game subs get the sub's branding, while games that
+ * share a sub (multiple games, one subreddit) must set their own icon/color and are left
+ * untouched. Failures (private/missing sub) keep the game's existing values.
  */
 const enrichFromSubreddit = async (game: Game): Promise<Game> => {
   try {
     const sub = await reddit.getSubredditByName(game.subreddit_slug);
-    // Keep the full URL incl. query string — it carries a required signature. Just unescape.
+    const subscribers = sub.numberOfSubscribers ?? game.subscribers;
+    if (game.icon_url) {
+      // Self-presented game (e.g. one of several on a shared sub): keep its icon/color.
+      return { ...game, subscribers, subscribers_updated: today() };
+    }
+    // Keep the full icon URL incl. query string — it carries a required signature. Just unescape.
     const icon = sub.settings.communityIcon?.replace(/&amp;/g, '&');
     const color = sub.settings.primaryColor || sub.settings.keyColor;
     return {
       ...game,
       icon_url: icon || game.icon_url,
       color: color || game.color,
-      subscribers: sub.numberOfSubscribers ?? game.subscribers,
+      subscribers,
       subscribers_updated: today(),
     };
   } catch (error) {
@@ -32,7 +42,7 @@ const enrichFromSubreddit = async (game: Game): Promise<Game> => {
   }
 };
 
-export const SEED_GAMES: Game[] = [
+export const SEED_GAMES: SeedGame[] = [
   {
     name: 'Word Trail Game',
     subreddit: 'r/Word_Trail_Game',
@@ -146,11 +156,12 @@ export const SEED_GAMES: Game[] = [
 export const seedGames = async (force = false): Promise<number> => {
   let written = 0;
   for (const game of SEED_GAMES) {
+    const withId: Game = { ...game, id: slugify(game.name) };
     if (!force) {
-      const existing = await getGame(game.subreddit_slug);
+      const existing = await getGame(withId.id);
       if (existing) continue;
     }
-    const enriched = await enrichFromSubreddit(game);
+    const enriched = await enrichFromSubreddit(withId);
     await putGame(enriched);
     written++;
   }

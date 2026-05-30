@@ -36,7 +36,7 @@ export const AdminPanel = () => {
         <ul className="flex flex-col gap-3">
           {games.map((game) => (
             <li
-              key={game.subreddit_slug}
+              key={game.id}
               className="rounded-xl border border-white/10 bg-[#0e1216] p-4"
             >
               <div className="flex items-start justify-between gap-3">
@@ -58,13 +58,13 @@ export const AdminPanel = () => {
                 </div>
                 <div className="flex flex-col gap-2 shrink-0">
                   <button
-                    onClick={() => approve(game.subreddit_slug)}
+                    onClick={() => approve(game.id)}
                     className="px-3 py-1.5 rounded-md bg-green-600 hover:bg-green-700 text-sm font-medium cursor-pointer"
                   >
                     Approve
                   </button>
                   <button
-                    onClick={() => reject(game.subreddit_slug)}
+                    onClick={() => reject(game.id)}
                     className="px-3 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-sm font-medium cursor-pointer"
                   >
                     Reject

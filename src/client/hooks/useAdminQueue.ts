@@ -37,22 +37,22 @@ export const useAdminQueue = () => {
   }, []);
 
   const act = useCallback(
-    async (action: 'approve' | 'reject', slug: string) => {
+    async (action: 'approve' | 'reject', id: string) => {
       try {
         const res = await fetch(`/api/admin/${action}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug }),
+          body: JSON.stringify({ id }),
         });
         const data: AdminActionResponse = await res.json();
         if (data.ok) {
           setState((prev) => ({
             ...prev,
-            games: prev.games.filter((g) => g.subreddit_slug !== slug),
+            games: prev.games.filter((g) => g.id !== id),
           }));
         }
       } catch (err) {
-        console.error(`Failed to ${action} ${slug}`, err);
+        console.error(`Failed to ${action} ${id}`, err);
       }
     },
     []
@@ -60,7 +60,7 @@ export const useAdminQueue = () => {
 
   return {
     ...state,
-    approve: (slug: string) => act('approve', slug),
-    reject: (slug: string) => act('reject', slug),
+    approve: (id: string) => act('approve', id),
+    reject: (id: string) => act('reject', id),
   } as const;
 };

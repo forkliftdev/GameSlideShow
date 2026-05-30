@@ -5,8 +5,9 @@ type GameCardProps = { game: Game };
 
 /** A launchpad tile: colored card with a centered round thumbnail, name + genre below. */
 export const GameCard = ({ game }: GameCardProps) => {
+  // Per-game link if set, otherwise quietly fall back to the host subreddit.
   const open = () =>
-    navigateTo(`https://reddit.com/r/${game.subreddit_slug}`);
+    navigateTo(game.url || `https://reddit.com/r/${game.subreddit_slug}`);
 
   return (
     <button

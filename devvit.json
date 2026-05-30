@@ -34,6 +34,13 @@
         "endpoint": "/internal/menu/seed"
       },
       {
+        "label": "Reset Games (clear all)",
+        "description": "Delete all game records and indexes",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/reset"
+      },
+      {
         "label": "Add Game",
         "description": "Add a game to the launchpad",
         "location": ["subreddit", "post"],

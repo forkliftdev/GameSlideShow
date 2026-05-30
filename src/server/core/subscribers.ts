@@ -22,14 +22,14 @@ export const refreshAllSubscribers = async (): Promise<RefreshResult> => {
     try {
       const info = await reddit.getSubredditInfoByName(game.subreddit_slug);
       const count = info.subscribersCount ?? game.subscribers;
-      await patchGame(game.subreddit_slug, {
+      await patchGame(game.id, {
         subscribers: String(count),
         subscribers_updated: today(),
       });
       updated++;
     } catch (error) {
       console.error(`Subscriber refresh failed for ${game.subreddit_slug}:`, error);
-      await patchGame(game.subreddit_slug, { fetch_error: today() });
+      await patchGame(game.id, { fetch_error: today() });
       failed.push(game);
     }
   }

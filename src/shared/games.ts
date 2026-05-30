@@ -30,11 +30,16 @@ export const GENRE_LABELS: Record<GenreTag, string> = {
 export type GameStatus = 'active' | 'pending' | 'aged_out';
 
 export type Game = {
+  /** Unique game id (the Redis key). Distinct from the subreddit so one sub can host
+   *  several games. Derived from the game name via slugify(). */
+  id: string;
   name: string;
   /** Display string, e.g. "r/Word_Trail_Game". */
   subreddit: string;
-  /** Normalized slug used as the Redis key, e.g. "Word_Trail_Game". */
+  /** Host subreddit slug, e.g. "Word_Trail_Game". NOT unique — may be shared by games. */
   subreddit_slug: string;
+  /** Optional stable per-game link (e.g. a pinned post). Card falls back to the sub if empty. */
+  url?: string;
   /** Empty string => modmail features are skipped for this game. */
   dev_username: string;
   /** ISO 8601 date, YYYY-MM-DD. */
@@ -198,10 +203,16 @@ const hashKey = (s: string): number => {
  * Deterministic shuffle: random order per `seed`, but stable across re-renders for the same
  * seed (so the row doesn't reshuffle while you type). Pass a fresh seed per page load.
  */
-export const shuffleStable = <T extends { subreddit_slug: string }>(
+export const shuffleStable = <T extends { id: string }>(
   items: T[],
   seed: number
 ): T[] =>
-  [...items].sort(
-    (a, b) => hashKey(a.subreddit_slug + seed) - hashKey(b.subreddit_slug + seed)
-  );
+  [...items].sort((a, b) => hashKey(a.id + seed) - hashKey(b.id + seed));
+
+/** Turn a game name into a url-safe id slug, e.g. "4 Pics 1 Word" → "4-pics-1-word". */
+export const slugify = (s: string): string =>
+  s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');

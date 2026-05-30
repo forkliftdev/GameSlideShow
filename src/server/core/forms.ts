@@ -20,6 +20,12 @@ export const stripPrefix = (raw: string): string =>
 const modFields = (game?: Game): Form['fields'] => [
   {
     type: 'string',
+    name: 'id',
+    label: 'Game ID (leave blank to add a new game; do not change when editing)',
+    defaultValue: game?.id,
+  },
+  {
+    type: 'string',
     name: 'name',
     label: 'Game name',
     required: true,
@@ -31,6 +37,12 @@ const modFields = (game?: Game): Form['fields'] => [
     label: 'Subreddit (with or without r/)',
     required: true,
     defaultValue: game?.subreddit,
+  },
+  {
+    type: 'string',
+    name: 'url',
+    label: 'Game link (optional — stable post/permalink; blank links to the subreddit)',
+    defaultValue: game?.url,
   },
   {
     type: 'string',
@@ -117,6 +129,11 @@ export const submitGameFormDefinition = (): FormSpec => ({
         name: 'subreddit',
         label: 'Subreddit (with or without r/)',
         required: true,
+      },
+      {
+        type: 'string',
+        name: 'url',
+        label: 'Game link (optional — blank links to the subreddit)',
       },
       {
         type: 'string',
