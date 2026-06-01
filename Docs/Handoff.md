@@ -1,6 +1,6 @@
 # Handoff — Word Game Arcade Launchpad
 
-_Last updated: 2026-05-30_
+_Last updated: 2026-05-31_
 
 A living handoff: current state, the decisions we made (and why), open issues, and the
 questions likely to face us next. Companion docs: [launchpad-plan.md](launchpad-plan.md)
@@ -14,6 +14,11 @@ questions likely to face us next. Companion docs: [launchpad-plan.md](launchpad-
   [AGENTS.md](../AGENTS.md)).
 - **Playtest:** live via `npm run dev` on `gameslideshow_dev`. Changes hot-reload; just
   refresh the post. Version climbs on every save — cosmetic, not a concern.
+- **Production:** **v0.0.3 uploaded and installed to r/WordGameArcade** (2026-05-31, by
+  `theforkliftdev`). Install only makes the app available — it does **not** seed games, so the
+  sub stays empty until a power mod runs **Create Launchpad Post** then **Seed Games**.
+- **Catalog:** seed now holds **26 games** — the original **8** (round 1) plus **18** new
+  live-sub games imported from the Combined Intake sheet (round 2; see §2).
 - **What works:** the inline carousel (tabs, counts, search, scroll arrows), card
   auto-enrichment (icon/color/subscribers from the host subreddit), seed/reset/create-post
   menus, native Add/Edit/Submit forms, pending-queue admin panel, weekly subscriber-refresh
@@ -29,6 +34,11 @@ questions likely to face us next. Companion docs: [launchpad-plan.md](launchpad-
 4. **Add Game / Edit Game** (mods), **Submit Your Game** (anyone → pending queue).
 
 > After any data-model change, run **Reset → Seed** so stale records don't linger.
+
+> **Finding the menu:** these are `location: "subreddit"` actions. They appear nested under the
+> **app name (gameslideshow)** in the subreddit `...` menu, and are **reliable only on desktop**
+> — the mobile app generally does not surface subreddit-level actions. For a phone-friendly
+> trigger we'd add a `location: "post"` action (open item, §4).
 
 ---
 
@@ -76,14 +86,23 @@ Some brands host several games on one sub (e.g. r/DetectivePuzzles). So:
   something other than the sub icon. (See open item in §4 — the public submission form does
   not yet expose an icon field.)
 
-### Data intake (in progress)
-- We are loading ~30 more games. Method: collect + verify in a **Google Sheet**, then hand it
-  back and the games get loaded (seed-style, with the same auto-enrichment).
-- Intake sheet (Subreddit, Game Name, Game Link, Genres, Founded, Dev, Notes, Verified):
+### Data intake
+- Method unchanged: collect + verify in a **Google Sheet**, then load seed-style with the same
+  auto-enrichment. We chose **not** to build an in-app bulk importer — collection lives in sheets.
+- **Round 2 loaded (2026-05-31).** The "arcade" workbook had two data tabs (Sheet1 = game
+  directory: slugs, categories, dates, counts; Sheet2 = growth/status analysis). They were
+  merged one-row-per-game (joined by game/subreddit) into a new **Combined Intake** sheet:
+  https://docs.google.com/spreadsheets/d/17RjcKah4ouHm1aNS6DUegnaGJKXjSTKzsiUYOTEhwxE/edit
+- From it, **18 live-sub games** were appended to `SEED_GAMES` (`Ecosystem Installs` / no-sub
+  rows skipped): GameFox, Detective Search/Scramble/Daily/Connections (4 on the shared
+  r/DetectivePuzzles), GIF Enigma, Wordungus, Ladder Climb, WordMaxed Mini, Mind the Word,
+  Word Grind, Proximity, Which is fake?, Word Pool, SumWords, WordPaws, Redacted, Snap Guess.
+- **Unscramble Game excluded on purpose** — the source flagged it "Do Not List" (its sub is an
+  app-store promo). Re-add if that changes.
+- The earlier **FlexWord intake sheet** (Daily Guess, Daily Mix, FlexBard, Wriddler,
+  FlexPlayCozy, WordFusions, BlinkWords) is a **separate batch, not in seed yet** —
+  genres/dev/verified still to fill with badasimo.
   https://docs.google.com/spreadsheets/d/1fdfX-SiGIfAvHw9yfXDCNNbpifo1QOzP-DlGVhy26XY/edit
-- 7 new games are pre-filled (Daily Guess, Daily Mix, FlexBard, Wriddler, FlexPlayCozy,
-  WordFusions, BlinkWords); genres/dev/verified still to fill with badasimo.
-- We chose **not** to build an in-app bulk importer — collection lives in the sheet.
 
 ---
 
@@ -139,7 +158,19 @@ Not yet defined or built. Today nothing ages a game out for inactivity. Decision
 - **Seed is destructive.** "Seed Games" force-overwrites the 8 round-1 games (reverts mod
   edits to them). Fine pre-launch; revisit before public launch if that's a risk.
 - **Genre/data confirmations.** Confirm genre tags, colors, dev usernames for seed + intake
-  games. (r/4pics1word confirmed real.)
+  games. (r/4pics1word confirmed real.) **The 18 round-2 games have INFERRED `genre_tags`** —
+  mapped from the intake's vague "Category" column — so review before public launch. A wrong tag
+  just parks a card under the wrong genre tab (one-line fix in `seed.ts`).
+- **Subscriber-count discrepancies (round 2).** Sheet1 and Sheet2 disagreed sharply for several
+  games (WordMaxed 640 vs 6, Proximity 1,890 vs 32, Mind the Word 310 vs 2, Wordungus 185 vs
+  418). Seed uses the Sheet2 number where present, but live enrichment overrides it at seed time
+  anyway — reconcile the source data when convenient.
+- **Round-2 import status = `active`.** All 18 were seeded `active` like the round-1 8, even ones
+  Sheet2 labels Dormant/Stalled (Proximity, GIF Enigma, WordMaxed). Decide whether external
+  imports should instead land as `pending` for review.
+- **Phone-friendly seed trigger.** Subreddit menu actions don't appear in the mobile app. Add a
+  `location: "post"` "Load Games" / "Create Post" action to drive the arcade from a phone, and/or
+  rename the "...Launchpad..." labels to read as the arcade.
 - **Subreddit-ownership verification.** v1 is manual (mod checks); no automated check.
 - **Production cutover.** App rename decision; `deploy`/`launch` (publish); mod must manually
   pin the post; verify scheduler jobs (Sun refresh, Mon aged-out) and modmail end-to-end on a
